@@ -43,6 +43,45 @@ Start RagBase:
 poetry run streamlit run app.py
 ```
 
+## Image Ingestion (OCR)
+
+RagBase can extract text from image files (PNG, JPG, JPEG) via OCR and index
+that text alongside your PDFs so you can ask questions about scanned documents
+and screenshots.
+
+### Install Tesseract OCR
+
+Tesseract is a system dependency that must be installed separately:
+
+| Platform | Command |
+|----------|---------|
+| **macOS** | `brew install tesseract` |
+| **Ubuntu / Debian** | `sudo apt-get install tesseract-ocr` |
+| **Windows** | Download the installer from the [UB-Mannheim wiki](https://github.com/UB-Mannheim/tesseract/wiki) and add it to `PATH` |
+
+The Python wrappers (`pytesseract` and `Pillow`) are already included in the
+project dependencies and will be installed by `poetry install` / `pip install`.
+
+### Usage
+
+1. Start the app as normal (`poetry run streamlit run app.py`).
+2. In the file-upload widget you can now select **PDF, PNG, JPG, or JPEG** files.
+3. After uploading, a brief OCR preview (first 200 characters) is shown for
+   each image.
+4. Chat with your documents as usual — OCR text is indexed in the same vector
+   store as PDF content.
+
+### Limitations & Troubleshooting
+
+- **Quality depends on image clarity.** Blurry or low-contrast images will
+  produce poor OCR results. A grayscale + contrast-boost preprocessing step is
+  applied automatically to improve accuracy on most scanned documents.
+- **Languages.** By default Tesseract uses English. For other languages install
+  the appropriate language pack (e.g. `tesseract-ocr-chi-sim` for Simplified
+  Chinese on Ubuntu) and pass `lang=` to `pytesseract.image_to_string`.
+- **Tesseract not found error.** If you see *"Tesseract OCR is not installed or
+  not found on PATH"* follow the installation table above and restart the app.
+
 ## Architecture
 
 <a href="https://www.mlexpert.io/bootcamp" target="_blank">
@@ -51,7 +90,7 @@ poetry run streamlit run app.py
 
 ### Ingestor
 
-Extracts text from PDF documents and creates chunks (using semantic and character splitter) that are stored in a vector databse
+Extracts text from PDF documents and images (via OCR) and creates chunks (using semantic and character splitter) that are stored in a vector database.
 
 ### Retriever
 
@@ -71,6 +110,7 @@ Combines the LLM with the retriever to answer a given user question
 - [FastEmbed](https://qdrant.github.io/fastembed/) - lightweight and fast embedding generation
 - [Streamlit](https://streamlit.io/) - build UI for data apps
 - [PDFium](https://pdfium.googlesource.com/pdfium/) - PDF processing and text extraction
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) + [pytesseract](https://github.com/madmaze/pytesseract) - image text extraction
 
 ## Add Groq API Key (Optional)
 
