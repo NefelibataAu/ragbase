@@ -37,11 +37,47 @@ Run the Ollama server
 ollama serve
 ```
 
-Start RagBase:
+Start RagBase (Streamlit UI — optional):
 
 ```sh
 poetry run streamlit run app.py
 ```
+
+## CLI Usage (no frontend required)
+
+RagBase ships with a `main.py` CLI that lets you ingest documents and ask
+questions without starting the Streamlit app.
+
+### Ingest documents
+
+Scan a directory (recursively) for supported files (`.pdf`, `.png`, `.jpg`,
+`.jpeg`) and index them into the local Qdrant vector store:
+
+```sh
+python main.py ingest ./path/to/docs
+```
+
+The command exits with a non-zero status and a descriptive message if the
+directory does not exist or no supported files are found.
+
+### Ask a question
+
+Query the existing vector store and print the answer to stdout:
+
+```sh
+python main.py ask "What is the main topic of the documents?"
+```
+
+Output format:
+
+```
+=== ANSWER ===
+<answer text>
+```
+
+> **Note:** The `ask` command requires that you have already run `ingest` at
+> least once (or used the Streamlit UI to upload files) so that the vector
+> store exists.
 
 ## Image Ingestion (OCR)
 
@@ -64,7 +100,16 @@ project dependencies and will be installed by `poetry install` / `pip install`.
 
 ### Usage
 
-1. Start the app as normal (`poetry run streamlit run app.py`).
+**Via CLI (recommended, no frontend required):**
+
+```sh
+python main.py ingest ./path/to/images_and_pdfs
+python main.py ask "What does the scanned document say?"
+```
+
+**Via Streamlit UI:**
+
+1. Start the app (`poetry run streamlit run app.py`).
 2. In the file-upload widget you can now select **PDF, PNG, JPG, or JPEG** files.
 3. After uploading, a brief OCR preview (first 200 characters) is shown for
    each image.
