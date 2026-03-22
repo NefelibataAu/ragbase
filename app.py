@@ -1,11 +1,14 @@
 import asyncio
 import random
+import tempfile
+from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
 
 from ragbase.chain import ask_question, create_chain
 from ragbase.config import Config
+from ragbase.image_parser import TesseractNotFoundError, extract_text_from_image, is_image_path
 from ragbase.ingestor import Ingestor
 from ragbase.model import create_llm
 from ragbase.retriever import create_retriever
@@ -30,7 +33,11 @@ LOADING_MESSAGES = [
 @st.cache_resource(show_spinner=False)
 def build_qa_chain(files):
     file_paths = upload_files(files)
-    vector_store = Ingestor().ingest(file_paths)
+    try:
+        vector_store = Ingestor().ingest(file_paths)
+    except TesseractNotFoundError as exc:
+        st.error(str(exc))
+        st.stop()
     llm = create_llm()
     retriever = create_retriever(llm, vector_store=vector_store)
     return create_chain(llm, retriever)
@@ -64,15 +71,45 @@ def show_upload_documents():
         st.header("RagBase")
         st.subheader("Get answers from your documents")
         uploaded_files = st.file_uploader(
-            label="Upload PDF files", type=["pdf"], accept_multiple_files=True
+            label="Upload PDF or image files",
+            type=["pdf", "png", "jpg", "jpeg"],
+            accept_multiple_files=True,
         )
     if not uploaded_files:
-        st.warning("Please upload PDF documents to continue!")
+        st.warning("Please upload PDF or image documents to continue!")
         st.stop()
 
     with st.spinner("Analyzing your document(s)..."):
         holder.empty()
+        _show_image_ocr_preview(uploaded_files)
         return build_qa_chain(uploaded_files)
+
+
+def _show_image_ocr_preview(uploaded_files):
+    """Show a brief OCR preview for any uploaded image files."""
+    image_files = [f for f in uploaded_files if is_image_path(Path(f.name))]
+    if not image_files:
+        return
+
+    for uploaded_file in image_files:
+        with tempfile.NamedTemporaryFile(
+            suffix=Path(uploaded_file.name).suffix, delete=False
+        ) as tmp:
+            tmp.write(uploaded_file.getvalue())
+            tmp_path = Path(tmp.name)
+        try:
+            doc = extract_text_from_image(tmp_path)
+            preview = doc.page_content[:200].replace("\n", " ").strip()
+            st.info(
+                f"📷 **{uploaded_file.name}** — OCR extracted "
+                f"{len(doc.page_content)} characters. "
+                f"Preview: _{preview}…_"
+            )
+        except TesseractNotFoundError as exc:
+            st.error(str(exc))
+            st.stop()
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
 
 def show_message_history():

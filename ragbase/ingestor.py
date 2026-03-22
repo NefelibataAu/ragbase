@@ -9,6 +9,7 @@ from langchain_qdrant import Qdrant
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from ragbase.config import Config
+from ragbase.image_parser import extract_text_from_image, is_image_path
 
 
 class Ingestor:
@@ -26,13 +27,21 @@ class Ingestor:
     def ingest(self, doc_paths: List[Path]) -> VectorStore:
         documents = []
         for doc_path in doc_paths:
-            loaded_documents = PyPDFium2Loader(doc_path).load()
-            document_text = "\n".join([doc.page_content for doc in loaded_documents])
-            documents.extend(
-                self.recursive_splitter.split_documents(
-                    self.semantic_splitter.create_documents([document_text])
+            if is_image_path(doc_path):
+                doc = extract_text_from_image(doc_path)
+                documents.extend(
+                    self.recursive_splitter.split_documents(
+                        self.semantic_splitter.create_documents([doc.page_content])
+                    )
                 )
-            )
+            else:
+                loaded_documents = PyPDFium2Loader(doc_path).load()
+                document_text = "\n".join([doc.page_content for doc in loaded_documents])
+                documents.extend(
+                    self.recursive_splitter.split_documents(
+                        self.semantic_splitter.create_documents([document_text])
+                    )
+                )
         return Qdrant.from_documents(
             documents=documents,
             embedding=self.embeddings,
